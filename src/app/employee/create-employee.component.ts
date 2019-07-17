@@ -24,6 +24,8 @@ export class CreateEmployeeComponent implements OnInit {
 formErrors = {
   'fullName': '',
   'email': '',
+  'confirmEmail': '',
+  'emailGroup': '',
   'phone': '',
   'skillName': '',
   'experienceInYears': '',
@@ -39,7 +41,13 @@ validationMessages = {
   },
   'email': {
     'required': 'Email is required.',
-    'emailDomain': 'Email domain should be gmail.com'
+    'emailDomain': 'Email domian should be dell.com'
+  },
+  'confirmEmail': {
+    'required': 'Confirm Email is required.'
+  },
+  'emailGroup': {
+    'emailMismatch': 'Email and Confirm Email do not match.'
   },
   'phone': {
     'required': 'Phone is required.'
@@ -52,7 +60,7 @@ validationMessages = {
   },
   'proficiency': {
     'required': 'Proficiency is required.',
-  },
+  }
 };
 
 
@@ -66,7 +74,12 @@ validationMessages = {
   this.employeeForm = this.fb.group({
     fullName: ['', [Validators.required,Validators.minLength(2), Validators.maxLength(10)]],
     contactPreference: ['email'],
-    email: ['', [Validators.required, CustomValidators.emailDomain('gmail.com')]],
+    emailGroup: this.fb.group(
+      {
+      email: ['', [Validators.required, this.emailDomain('dell.com')]],
+      confirmEmail: ['', [Validators.required]],
+      },
+      { validator: this.matchEmails }),
     phone: [''],
     skills: this.fb.group({
       skillName: ['', Validators.required],
@@ -75,34 +88,40 @@ validationMessages = {
     }),
   });
 
-  this.employeeForm.get('contactPreference').valueChanges.subscribe((data: string) => {
-  this.onContactPrefernceChange(data);
-  });
+    this.employeeForm.get('contactPreference').valueChanges.subscribe((data: string) => {
+    this.onContactPrefernceChange(data);
+    });
 
-   // When any of the form control value in employee form changes
-  // our validation function logValidationErrors() is called
-  this.employeeForm.valueChanges.subscribe((data) => {
-    this.logValidationErrors(this.employeeForm);
-  });
+    // When any of the form control value in employee form changes
+    // our validation function logValidationErrors() is called
+    this.employeeForm.valueChanges.subscribe((data) => {
+      this.logValidationErrors(this.employeeForm);
+    });
 
   }
 
   logValidationErrors(group: FormGroup = this.employeeForm): void {
     Object.keys(group.controls).forEach((key: string) => {
       const abstractControl = group.get(key);
-      if (abstractControl instanceof FormGroup) {
-        this.logValidationErrors(abstractControl);
-      } else {
-        this.formErrors[key] = '';
-        if (abstractControl && !abstractControl.valid
-            && (abstractControl.touched || abstractControl.dirty)) {
-          const messages = this.validationMessages[key];
-          for (const errorKey in abstractControl.errors) {
-            if (errorKey) {
-              this.formErrors[key] += messages[errorKey] + ' ';
-            }
+      this.formErrors[key] = '';
+      // Loop through nested form groups and form controls to check
+      // for validation errors. For the form groups and form controls
+      // that have failed validation, retrieve the corresponding
+      // validation message from validationMessages object and store
+      // it in the formErrors object. The UI binds to the formErrors
+      // object properties to display the validation errors.
+      if (abstractControl && !abstractControl.valid
+        && (abstractControl.touched || abstractControl.dirty)) {
+        const messages = this.validationMessages[key];
+        for (const errorKey in abstractControl.errors) {
+          if (errorKey) {
+            this.formErrors[key] += messages[errorKey] + ' ';
           }
         }
+      }
+  
+      if (abstractControl instanceof FormGroup) {
+        this.logValidationErrors(abstractControl);
       }
     });
   }
@@ -146,6 +165,17 @@ validationMessages = {
         return { 'emailDomain': true };
       }
   };
+}
+
+ matchEmails(group: AbstractControl): { [key: string]: any } | null {
+  const emailControl = group.get('email');
+  const confirmEmailControl = group.get('confirmEmail');
+
+  if (emailControl.value === confirmEmailControl.value || confirmEmailControl.pristine) {
+    return null;
+  } else {
+    return { 'emailMismatch': true };
+  }
 }
 
   onSubmit(): void {
